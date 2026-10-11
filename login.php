@@ -1,3 +1,39 @@
+<?php
+session_start();
+
+$errors = [];
+$username = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $username = trim((string) ($_POST['username'] ?? ''));
+  $password = (string) ($_POST['password'] ?? '');
+
+  if (!preg_match('/\A[a-zA-Z0-9_]{3,20}\z/', $username)) {
+  	$errors['username'] = 'Use 3 to 20 letters, numbers, or underscores.';
+  }
+
+  if (!preg_match('/\A[\x21-\x7E]{8,64}\z/', $password)) {
+  	$errors['password'] = 'Password must be 8 to 64 printable characters with no spaces.';
+  }
+
+  if (!$errors) {
+  	if ($username === 'briel' && $password === 'password') {
+  		session_regenerate_id(true);
+  		$_SESSION['driveCraftAuthenticated'] = true;
+  		$_SESSION['driveCraftUsername'] = $username;
+  		header('Location: index.php');
+  		exit;
+  	}
+
+  	$errors['form'] = 'Incorrect username or password. Please try again.';
+  }
+}
+
+function escapeLoginValue(string $value): string
+{
+  return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,38 +113,46 @@
   <main class="page container-fluid row">
     <section class="account-card shadow-lg col-xl-3 col-lg-4 col-md-6 col-sm-12 col-12" aria-label="Account access">
       <header class="brand">
-        <a href="login.html"><span class="brand-mark">DriveCraft</span><span class="brand-subtitle">Built for the road ahead</span></a>
+        <a href="login.php"><span class="brand-mark">DriveCraft</span><span class="brand-subtitle">Built for the road ahead</span></a>
       </header>
 
       <!-- Switch between login and registration. -->
       <nav class="tabs nav nav-pills" aria-label="Account pages">
-        <a class="tab nav-link" href="login.html" aria-current="page">Login</a>
-        <a class="tab nav-link" href="register.html">Register</a>
+        <a class="tab nav-link" href="login.php" aria-current="page">Login</a>
+        <a class="tab nav-link" href="register.php">Register</a>
       </nav>
 
       <section aria-labelledby="login-title">
         <h1 id="login-title">Welcome back</h1>
         <p class="intro">We don&apos;t pray for love, we just pray for cars.</p>
         <!-- Validation targets this form by ID. -->
-        <form id="loginForm" action="landingpage.html" method="get">
+        <form id="loginForm" action="login.php" method="post">
           <fieldset>
             <div class="field mb-3">
               <label for="login-username">Username</label>
-              <input class="form-control" type="text" id="login-username" name="username" autocomplete="username" placeholder="Enter your username" required>
+              <input class="form-control<?= isset($errors['username']) ? ' is-invalid' : '' ?>" type="text" id="login-username" name="username" autocomplete="username" placeholder="Enter your username" value="<?= escapeLoginValue($username) ?>" required>
+              <?php if (isset($errors['username'])): ?>
+                <span class="field-error"><?= escapeLoginValue($errors['username']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="field mb-3">
               <label for="login-password">Password</label>
-              <input class="form-control" type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+              <input class="form-control<?= isset($errors['password']) ? ' is-invalid' : '' ?>" type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+              <?php if (isset($errors['password'])): ?>
+                <span class="field-error"><?= escapeLoginValue($errors['password']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="form-row">
               <label class="check form-check-label" for="remember"><input class="form-check-input" type="checkbox" id="remember" name="remember"> Remember me</label>
-              <a class="form-link" href="register.html">Need an account?</a>
+              <a class="form-link" href="register.php">Need an account?</a>
             </div>
-            <p id="login-feedback" class="form-feedback" role="alert" aria-live="polite"></p>
+            <?php if (isset($errors['form'])): ?>
+              <p class="form-feedback error" role="alert"><?= escapeLoginValue($errors['form']) ?></p>
+            <?php endif; ?>
             <button class="btn btn-primary" type="submit">Login</button>
           </fieldset>
         </form>
-        <p class="switch">Don&apos;t have an account? <a href="register.html">Register now</a></p>
+        <p class="switch">Don&apos;t have an account? <a href="register.php">Register now</a></p>
       </section>
     </section>
   </main>
@@ -117,10 +161,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.22.1/jquery.validate.min.js" integrity="sha512-qu7dMuIm2f0KcKZ3BOoP4c+Hn+r4E8PbD2Ro4rmKsOyheCxcwhzQpf6SojA76dn+owqfANzfTFUTkGA+HpHjOA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
     $(function () {
-      // acc for login demo credentials
-      const demoUsername = "briel";
-      const demoPassword = "password";
-
       $("#loginForm").validate({
         rules: {
           username: { required: true },
@@ -137,23 +177,6 @@
         },
         unhighlight: function (element) {
           $(element).removeClass("is-invalid");
-        },
-        submitHandler: function (form) {
-          // Check credentials after validation passes.
-          const username = $(form).find("[name='username']").val().trim();
-          const password = $(form).find("[name='password']").val();
-          const feedback = $("#login-feedback");
-
-          if (username === demoUsername && password === demoPassword) {
-            // Save this demo login for the current tab.
-            sessionStorage.setItem("driveCraftAuthenticated", "true");
-            sessionStorage.setItem("driveCraftUsername", username);
-            window.location.href = "landingpage.html";
-            return false;
-          }
-
-          feedback.text("Incorrect username or password. Please try again.").addClass("error");
-          return false;
         }
       });
     });

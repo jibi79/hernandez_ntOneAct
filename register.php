@@ -1,3 +1,41 @@
+<?php
+$errors = [];
+$name = '';
+$email = '';
+$feedback = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	$name = trim((string) ($_POST['name'] ?? ''));
+	$email = trim((string) ($_POST['email'] ?? ''));
+	$password = (string) ($_POST['password'] ?? '');
+	$confirmPassword = (string) ($_POST['confirmPassword'] ?? '');
+
+	if (!preg_match('/\A[\p{L}][\p{L}\p{M} \'-]{2,19}\z/u', $name)) {
+		$errors['name'] = 'Enter a 3 to 20 character name using letters, spaces, apostrophes, or hyphens.';
+	}
+
+	if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+		$errors['email'] = 'Enter a valid email address.';
+	}
+
+	if (!preg_match('/\A[\x21-\x7E]{8,64}\z/', $password)) {
+		$errors['password'] = 'Password must be 8 to 64 printable characters with no spaces.';
+	}
+
+	if ($confirmPassword !== $password) {
+		$errors['confirmPassword'] = 'Your passwords must match.';
+	}
+
+	if (!$errors) {
+		$feedback = 'Your registration details are valid. This demo does not save accounts; use username briel and password password to log in.';
+	}
+}
+
+function escapeRegisterValue(string $value): string
+{
+	return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -73,43 +111,57 @@
   <main class="page container-fluid row">
     <section class="account-card shadow-lg col-xl-3 col-lg-4 col-md-6 col-sm-12 col-12" aria-label="Create an account">
       <header class="brand">
-        <a href="login.html"><span class="brand-mark">DriveCraft</span><span class="brand-subtitle">Built for the road ahead</span></a>
+        <a href="login.php"><span class="brand-mark">DriveCraft</span><span class="brand-subtitle">Built for the road ahead</span></a>
       </header>
 
       <!-- Switch between login and registration. -->
       <nav class="tabs nav nav-pills" aria-label="Account pages">
-        <a class="tab nav-link" href="login.html">Login</a>
-        <a class="tab nav-link" href="/register.html" aria-current="page">Register</a>
+        <a class="tab nav-link" href="login.php">Login</a>
+        <a class="tab nav-link" href="register.php" aria-current="page">Register</a>
       </nav>
 
       <section aria-labelledby="register-title">
         <h1 id="register-title">Create an account</h1>
         <p class="intro">We don&apos;t pray for love, we just pray for cars.</p>
         <!-- Validation targets this form by ID. -->
-        <form id="registerForm" action="register.html" method="post">
+        <form id="registerForm" action="register.php" method="post">
           <fieldset>
             <div class="field mb-3">
               <label for="register-name">Full name</label>
-              <input class="form-control" type="text" id="register-name" name="name" autocomplete="name" placeholder="Your full name" required>
+              <input class="form-control<?= isset($errors['name']) ? ' is-invalid' : '' ?>" type="text" id="register-name" name="name" autocomplete="name" placeholder="Your full name" value="<?= escapeRegisterValue($name) ?>" required>
+              <?php if (isset($errors['name'])): ?>
+                <span class="field-error"><?= escapeRegisterValue($errors['name']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="field mb-3">
               <label for="register-email">Email address</label>
-              <input class="form-control" type="email" id="register-email" name="email" autocomplete="email" placeholder="example@email.com" required>
+              <input class="form-control<?= isset($errors['email']) ? ' is-invalid' : '' ?>" type="email" id="register-email" name="email" autocomplete="email" placeholder="example@email.com" value="<?= escapeRegisterValue($email) ?>" required>
+              <?php if (isset($errors['email'])): ?>
+                <span class="field-error"><?= escapeRegisterValue($errors['email']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="field mb-3">
               <label for="register-password">Create a password</label>
-              <input class="form-control" type="password" id="register-password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required>
+              <input class="form-control<?= isset($errors['password']) ? ' is-invalid' : '' ?>" type="password" id="register-password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" maxlength="64" required>
+              <?php if (isset($errors['password'])): ?>
+                <span class="field-error"><?= escapeRegisterValue($errors['password']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="field mb-3">
               <label for="register-confirm-password">Confirm password</label>
-              <input class="form-control" type="password" id="register-confirm-password" name="confirmPassword" autocomplete="new-password" placeholder="Enter your password again" required>
+              <input class="form-control<?= isset($errors['confirmPassword']) ? ' is-invalid' : '' ?>" type="password" id="register-confirm-password" name="confirmPassword" autocomplete="new-password" placeholder="Enter your password again" required>
+              <?php if (isset($errors['confirmPassword'])): ?>
+                <span class="field-error"><?= escapeRegisterValue($errors['confirmPassword']) ?></span>
+              <?php endif; ?>
             </div>
-            <p id="register-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+            <?php if ($feedback !== ''): ?>
+              <p class="form-feedback" role="status"><?= escapeRegisterValue($feedback) ?></p>
+            <?php endif; ?>
             <button class="btn btn-primary" type="submit">Create account</button>
           </fieldset>
         </form>
         <p class="terms">By creating an account, you agree to our terms and privacy policy.</p>
-        <p class="switch">Already have an account? <a href="login.html">Login here</a></p>
+        <p class="switch">Already have an account? <a href="login.php">Login here</a></p>
       </section>
     </section>
   </main>
@@ -152,11 +204,6 @@
         },
         unhighlight: function (element) {
           $(element).removeClass("is-invalid");
-        },
-        submitHandler: function () {
-          // Validation only; no account is saved.
-          $("#register-feedback").text("Your registration details are valid. This demo login uses username briel and password password.");
-          return false;
         }
       });
     });
